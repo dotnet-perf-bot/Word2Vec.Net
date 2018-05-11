@@ -57,7 +57,7 @@ namespace Word2Vec.Net
         private const int TableSize = (int) 1e8;
         private int[] _table;
 
-        internal Word2Vec(
+        public Word2Vec(
             string trainFileName,
             string outPutfileName,
             string saveVocabFileName,
@@ -186,7 +186,7 @@ namespace Word2Vec.Net
             for (var a = 0; a < VocabHashSize; a++) _vocabHash[a] = -1;
             int size = _vocabSize;
             _trainWords = 0;
-            for (var a = 0; a < size; a++)
+            /*for (var a = 0; a < size; a++)
             {
                 // Words occuring less than min_count times will be discarded from the vocab
                 if (_vocab[a].Cn < _minCount && (a != 0))
@@ -203,7 +203,7 @@ namespace Word2Vec.Net
                     _trainWords += _vocab[a].Cn;
                 }
             }
-            Array.Resize(ref _vocab, _vocabSize + 1);
+            Array.Resize(ref _vocab, _vocabSize + 1);*/
             
             // Allocate memory for the binary tree construction
             for (var a = 0; a < _vocabSize; a++)
@@ -331,56 +331,48 @@ namespace Word2Vec.Net
 
         private void LearnVocabFromTrainFile()
         {
-                int i;
-                for (var a = 0; a < VocabHashSize; a++) _vocabHash[a] = -1;
-            using (var fin = File.OpenText(_trainFile))
-                {
-                    if (fin == StreamReader.Null)
-                    {
-                        throw new InvalidOperationException("ERROR: training data file not found!\n");
-                    }
-                    _vocabSize = 0;
-                
-                string line;
-                Regex regex = new Regex("\\s");
-                    AddWordToVocab("</s>");
-                while ((line = fin.ReadLine()) != null)
-                    {
-                        if (fin.EndOfStream) break;
-                    string[] words = regex.Split(line);
+            int i;
+            for (var a = 0; a < VocabHashSize; a++) _vocabHash[a] = -1;
+            string[] fin = System.IO.File.ReadAllLines(_trainFile);
+            _vocabSize = 0;
 
-                    foreach (var word in words)
+            Regex regex = new Regex("\\s");
+                AddWordToVocab("</s>");
+            foreach (string line in fin)
+            {
+                string[] words = regex.Split(line);
+
+                foreach (var word in words)
+                {
+                    if(string.IsNullOrWhiteSpace(word)) continue;
+                    _trainWords++;
+                    if ((_debugMode > 1) && (_trainWords%100000 == 0))
                     {
-                        if(string.IsNullOrWhiteSpace(word)) continue;
-                        _trainWords++;
-                        if ((_debugMode > 1) && (_trainWords%100000 == 0))
-                        {
-                            Console.Write("{0}K \r", _trainWords/1000);
-                            //printf("%lldK%c", train_words / 1000, 13);
-                            //fflush(stdout);
-                        }
-                        i = SearchVocab(word);
-                        if (i == -1)
+                        Console.Write("{0}K \r", _trainWords/1000);
+                        //printf("%lldK%c", train_words / 1000, 13);
+                        //fflush(stdout);
+                    }
+                    i = SearchVocab(word);
+                    if (i == -1)
                         {
                             var a = AddWordToVocab(word);
                             _vocab[a].Cn = 1;
                         }
-                        else
-                            _vocab[i].Cn++;
-                        if (_vocabSize > VocabHashSize*0.7)
-                            ReduceVocab();
-                    }
-                }
-                    SortVocab();
-                    if (_debugMode > 0)
-                    {
-                        Console.WriteLine("Vocab size: {0}", _vocabSize);
-                        Console.WriteLine("Words in train file: {0}", _trainWords);
-                    }
-                    //file_size = ftell(fin);
-                    _fileSize = new FileInfo(_trainFile).Length;
+                    else
+                        _vocab[i].Cn++;
+                    if (_vocabSize > VocabHashSize*0.7)
+                        ReduceVocab();
                 }
             }
+            SortVocab();
+            if (_debugMode > 0)
+            {
+                Console.WriteLine("Vocab size: {0}", _vocabSize);
+                Console.WriteLine("Words in train file: {0}", _trainWords);
+            }
+            //file_size = ftell(fin);
+            _fileSize = new FileInfo(_trainFile).Length;
+        }
 
         private void SaveVocab()
         {
